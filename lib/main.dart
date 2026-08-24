@@ -39,17 +39,51 @@ class _HelloWorldPageState extends State<HelloWorldPage> {
         title: const Text('Hello World App'),
       ),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Text(
+          displayText,
+          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+        ),
+      ),
+      bottomNavigationBar: Container(
+        height: 60,
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: Colors.grey.shade300)),
+        ),
+        child: Row(
           children: [
-            Text(
-              displayText,
-              style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+            // 1. bölme - boş
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border(right: BorderSide(color: Colors.grey.shade300)),
+                ),
+                child: const Center(child: Text('')),
+              ),
             ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _showHelloWorld,
-              child: const Text('Bas'),
+            // 2. bölme - Press butonu (mavi)
+            Expanded(
+              child: InkWell(
+                onTap: _showHelloWorld,
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border(right: BorderSide(color: Colors.grey.shade300)),
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Press',
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // 3. bölme - boş
+            const Expanded(
+              child: Center(child: Text('')),
             ),
           ],
         ),
