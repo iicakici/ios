@@ -15,6 +15,7 @@ workflows:
           flutter build ios --release --no-codesign
       - name: Create unsigned ipa
         script: |
+          mkdir -p build/ios/ipa
           mkdir -p build/ios/ipa_manual/Payload
           cp -r build/ios/iphoneos/Runner.app build/ios/ipa_manual/Payload/
           cd build/ios/ipa_manual
