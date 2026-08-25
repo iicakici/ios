@@ -8,6 +8,12 @@ workflows:
       xcode: latest
       cocoapods: default
     scripts:
+      - name: Clean everything
+        script: |
+          flutter clean
+          rm -rf ~/Library/Developer/Xcode/DerivedData
+          rm -rf ios/build
+          rm -rf build
       - name: Get Flutter packages
         script: flutter packages pub get
       - name: Build unsigned iOS app
