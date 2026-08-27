@@ -3,16 +3,15 @@ import SwiftUI
 import AppIntents
 import CoreBluetooth
 
-class BLEDeviceReader: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
+class BLEListScanner: NSObject, CBCentralManagerDelegate {
     private var manager: CBCentralManager!
-    private var continuation: CheckedContinuation<String, Never>?
-    private var foundPeripherals: [(peripheral: CBPeripheral, rssi: Int)] = []
-    private var targetPeripheral: CBPeripheral?
+    private var continuation: CheckedContinuation<[String], Never>?
+    private var foundDevices: [String: Int] = [:]
 
-    func readDeviceName() async -> String {
+    func scanDevices() async -> [String] {
         return await withCheckedContinuation { cont in
             self.continuation = cont
-            self.foundPeripherals = []
+            self.foundDevices = [:]
             self.manager = CBCentralManager(delegate: self, queue: nil)
         }
     }
@@ -20,105 +19,86 @@ class BLEDeviceReader: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate 
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         if central.state == .poweredOn {
             central.scanForPeripherals(withServices: nil, options: nil)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
                 central.stopScan()
-                self.connectToClosestDevice()
+                self.finishScan()
             }
         } else {
-            finish(with: "Bluetooth kapali")
+            continuation?.resume(returning: ["Bluetooth kapali"])
+            continuation = nil
         }
     }
 
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
-        foundPeripherals.append((peripheral, RSSI.intValue))
+        foundDevices[peripheral.identifier.uuidString] = RSSI.intValue
     }
 
-    private func connectToClosestDevice() {
-        guard !foundPeripherals.isEmpty else {
-            finish(with: "Cihaz bulunamadi")
-            return
-        }
-        let closest = foundPeripherals.max(by: { $0.rssi < $1.rssi })!
-        targetPeripheral = closest.peripheral
-        targetPeripheral?.delegate = self
-        manager.connect(targetPeripheral!, options: nil)
-    }
-
-    func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
-        peripheral.discoverServices([CBUUID(string: "1800")])
-    }
-
-    func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
-        finish(with: "Baglanilamadi")
-    }
-
-    func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
-        guard let service = peripheral.services?.first else {
-            finish(with: "Servis bulunamadi")
-            return
-        }
-        peripheral.discoverCharacteristics([CBUUID(string: "2A00")], for: service)
-    }
-
-    func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
-        guard let characteristic = service.characteristics?.first else {
-            finish(with: "Isim okunamadi")
-            return
-        }
-        peripheral.readValue(for: characteristic)
-    }
-
-    func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
-        if let data = characteristic.value, let name = String(data: data, encoding: .utf8) {
-            finish(with: name)
+    private func finishScan() {
+        if foundDevices.isEmpty {
+            continuation?.resume(returning: ["Cihaz bulunamadi"])
         } else {
-            finish(with: "Isim okunamadi")
+            let sorted = foundDevices.sorted { $0.value > $1.value }
+                .prefix(8)
+                .map { "\($0.key) (\($0.value) dBm)" }
+            continuation?.resume(returning: Array(sorted))
         }
-    }
-
-    private func finish(with result: String) {
-        continuation?.resume(returning: result)
         continuation = nil
     }
 }
 
-struct ReadDeviceNameIntent: AppIntent {
-    static var title: LocalizedStringResource = "Cihaz Adini Oku"
+struct ScanBLEIntent: AppIntent {
+    static var title: LocalizedStringResource = "BLE Tara"
 
     func perform() async throws -> some IntentResult {
-        let reader = BLEDeviceReader()
+        let scanner = BLEListScanner()
 
-        let result = await withTaskGroup(of: String.self) { group in
-            group.addTask { await reader.readDeviceName() }
+        let result = await withTaskGroup(of: [String].self) { group in
+            group.addTask { await scanner.scanDevices() }
             group.addTask {
                 try? await Task.sleep(nanoseconds: 8_000_000_000)
-                return "Zaman asimi"
+                return ["Zaman asimi"]
             }
-            let first = await group.next() ?? "Hata"
+            let first = await group.next() ?? ["Hata"]
             group.cancelAll()
             return first
         }
 
-        UIPasteboard.general.string = result
-        UserDefaults.standard.set(result, forKey: "lastDeviceName")
+        UserDefaults.standard.set(result, forKey: "deviceList")
         WidgetCenter.shared.reloadAllTimelines()
+        return .result()
+    }
+}
+
+struct CopyDeviceInfoIntent: AppIntent {
+    static var title: LocalizedStringResource = "Cihaz Bilgisini Kopyala"
+
+    @Parameter(title: "Cihaz Bilgisi")
+    var deviceInfo: String
+
+    init() {}
+    init(deviceInfo: String) {
+        self.deviceInfo = deviceInfo
+    }
+
+    func perform() async throws -> some IntentResult {
+        UIPasteboard.general.string = deviceInfo
         return .result()
     }
 }
 
 struct Provider: TimelineProvider {
     func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), deviceName: "Henuz okunmadi")
+        SimpleEntry(date: Date(), devices: ["Henuz taranmadi"])
     }
 
     func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> ()) {
-        let name = UserDefaults.standard.string(forKey: "lastDeviceName") ?? "Henuz okunmadi"
-        completion(SimpleEntry(date: Date(), deviceName: name))
+        let devices = UserDefaults.standard.stringArray(forKey: "deviceList") ?? ["Henuz taranmadi"]
+        completion(SimpleEntry(date: Date(), devices: devices))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<SimpleEntry>) -> ()) {
-        let name = UserDefaults.standard.string(forKey: "lastDeviceName") ?? "Henuz okunmadi"
-        let entry = SimpleEntry(date: Date(), deviceName: name)
+        let devices = UserDefaults.standard.stringArray(forKey: "deviceList") ?? ["Henuz taranmadi"]
+        let entry = SimpleEntry(date: Date(), devices: devices)
         let timeline = Timeline(entries: [entry], policy: .never)
         completion(timeline)
     }
@@ -126,27 +106,41 @@ struct Provider: TimelineProvider {
 
 struct SimpleEntry: TimelineEntry {
     let date: Date
-    let deviceName: String
+    let devices: [String]
 }
 
 struct HomeWidgetEntryView: View {
     var entry: Provider.Entry
 
     var body: some View {
-        VStack(spacing: 6) {
-            Text(entry.deviceName)
-                .font(.caption2)
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
-
-            Button(intent: ReadDeviceNameIntent()) {
-                Text("R")
-                    .font(.headline)
-                    .frame(width: 32, height: 32)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("BLE Cihazlar")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                Spacer()
+                Button(intent: ScanBLEIntent()) {
+                    Text("Tara")
+                        .font(.caption2)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                }
+                .buttonStyle(.borderedProminent)
             }
-            .buttonStyle(.borderedProminent)
+
+            Divider()
+
+            ForEach(entry.devices, id: \.self) { device in
+                Button(intent: CopyDeviceInfoIntent(deviceInfo: device)) {
+                    Text(device)
+                        .font(.system(size: 9))
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+            }
         }
-        .padding()
+        .padding(8)
     }
 }
 
@@ -158,7 +152,8 @@ struct HomeWidget: Widget {
             HomeWidgetEntryView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName("BLE Cihaz Okuyucu")
-        .description("En yakin Bluetooth cihazinin adini okuyup kopyalar.")
+        .configurationDisplayName("BLE Cihaz Listesi")
+        .description("Yakindaki BLE cihazlarini listeler, dokununca kopyalar.")
+        .supportedFamilies([.systemLarge])
     }
 }
