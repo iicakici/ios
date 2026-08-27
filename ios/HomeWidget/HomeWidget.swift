@@ -19,12 +19,12 @@ class BLEListScanner: NSObject, CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         if central.state == .poweredOn {
             central.scanForPeripherals(withServices: nil, options: nil)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                 central.stopScan()
                 self.finishScan()
             }
         } else {
-            continuation?.resume(returning: ["Bluetooth kapali"])
+            continuation?.resume(returning: ["Bluetooth durumu: \(central.state.rawValue)"])
             continuation = nil
         }
     }
@@ -35,7 +35,7 @@ class BLEListScanner: NSObject, CBCentralManagerDelegate {
 
     private func finishScan() {
         if foundDevices.isEmpty {
-            continuation?.resume(returning: ["Cihaz bulunamadi"])
+            continuation?.resume(returning: ["Cihaz bulunamadi (tarama tamamlandi)"])
         } else {
             let sorted = foundDevices.sorted { $0.value > $1.value }
                 .prefix(8)
@@ -50,18 +50,12 @@ struct ScanBLEIntent: AppIntent {
     static var title: LocalizedStringResource = "BLE Tara"
 
     func perform() async throws -> some IntentResult {
-        let scanner = BLEListScanner()
+        // ANINDA yaz - buton calisiyor mu test etmek icin
+        UserDefaults.standard.set(["Basildi - taraniyor..."], forKey: "deviceList")
+        WidgetCenter.shared.reloadAllTimelines()
 
-        let result = await withTaskGroup(of: [String].self) { group in
-            group.addTask { await scanner.scanDevices() }
-            group.addTask {
-                try? await Task.sleep(nanoseconds: 8_000_000_000)
-                return ["Zaman asimi"]
-            }
-            let first = await group.next() ?? ["Hata"]
-            group.cancelAll()
-            return first
-        }
+        let scanner = BLEListScanner()
+        let result = await scanner.scanDevices()
 
         UserDefaults.standard.set(result, forKey: "deviceList")
         WidgetCenter.shared.reloadAllTimelines()
@@ -92,12 +86,12 @@ struct Provider: TimelineProvider {
     }
 
     func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> ()) {
-        let devices = UserDefaults.standard.stringArray(forKey: "deviceList") ?? ["Henuz taranmadi"]
+        let devices = UserDefaults.standard.stringArray(forKey:"deviceList") ?? ["Henuz taranmadi"]
         completion(SimpleEntry(date: Date(), devices: devices))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<SimpleEntry>) -> ()) {
-        let devices = UserDefaults.standard.stringArray(forKey: "deviceList") ?? ["Henuz taranmadi"]
+        let devices = UserDefaults.standard.stringArray(forKey:"deviceList") ?? ["Henuz taranmadi"]
         let entry = SimpleEntry(date: Date(), devices: devices)
         let timeline = Timeline(entries: [entry], policy: .never)
         completion(timeline)
