@@ -40,10 +40,6 @@ class _BleScanPageState extends State<BleScanPage> {
     });
 
     try {
-      setState(() {
-        statusText = "Adapter kontrol ediliyor...";
-      });
-
       final state = await FlutterBluePlus.adapterState.first;
       setState(() {
         statusText = "Adapter durumu: $state";
@@ -79,11 +75,16 @@ class _BleScanPageState extends State<BleScanPage> {
     }
   }
 
+  bool _isAppleDevice(ScanResult result) {
+    // Apple'in company identifier kodu 76 (0x004C)
+    return result.advertisementData.manufacturerData.containsKey(76);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('BLE Cihaz Tarayici'),
+        title: const Text(''),
       ),
       body: Column(
         children: [
@@ -148,9 +149,22 @@ class _BleScanPageState extends State<BleScanPage> {
                     : 'Bilinmeyen Cihaz';
                 final id = result.device.remoteId.toString();
                 final rssi = result.rssi;
+                final isApple = _isAppleDevice(result);
 
                 return ListTile(
-                  title: Text(name),
+                  leading: Icon(
+                    isApple ? Icons.apple : Icons.bluetooth,
+                    color: isApple ? Colors.black : Colors.blueGrey,
+                    size: 28,
+                  ),
+                  title: Text(
+                    name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                      fontSize: 16,
+                    ),
+                  ),
                   subtitle: Text('$id ($rssi dBm)'),
                   trailing: const Icon(Icons.copy),
                   onTap: () {
