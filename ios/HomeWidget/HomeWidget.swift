@@ -10,6 +10,11 @@ struct SimpleTestIntent: AppIntent {
         let currentCount = UserDefaults.standard.integer(forKey: "tapCount")
         let newCount = currentCount + 1
         UserDefaults.standard.set(newCount, forKey: "tapCount")
+
+        // CBCentralManager olusturuyoruz ama hicbir sey yapmiyoruz
+        let manager = CBCentralManager()
+        UserDefaults.standard.set("Manager state: \(manager.state.rawValue)", forKey: "managerInfo")
+
         WidgetCenter.shared.reloadAllTimelines()
         return .result()
     }
@@ -17,17 +22,19 @@ struct SimpleTestIntent: AppIntent {
 
 struct Provider: TimelineProvider {
     func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), count: 0)
+        SimpleEntry(date: Date(), count: 0, info: "-")
     }
 
     func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> ()) {
         let count = UserDefaults.standard.integer(forKey: "tapCount")
-        completion(SimpleEntry(date: Date(), count: count))
+        let info = UserDefaults.standard.string(forKey: "managerInfo") ?? "-"
+        completion(SimpleEntry(date: Date(), count: count, info: info))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<SimpleEntry>) -> ()) {
         let count = UserDefaults.standard.integer(forKey: "tapCount")
-        let entry = SimpleEntry(date: Date(), count: count)
+        let info = UserDefaults.standard.string(forKey: "managerInfo") ?? "-"
+        let entry = SimpleEntry(date: Date(), count: count, info: info)
         let timeline = Timeline(entries: [entry], policy: .never)
         completion(timeline)
     }
@@ -36,6 +43,7 @@ struct Provider: TimelineProvider {
 struct SimpleEntry: TimelineEntry {
     let date: Date
     let count: Int
+    let info: String
 }
 
 struct HomeWidgetEntryView: View {
@@ -43,12 +51,15 @@ struct HomeWidgetEntryView: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            Text("V9 - CoreBluetooth Import Testi")
+            Text("V10 - CBCentralManager Testi")
                 .font(.headline)
 
             Text("Sayac: \(entry.count)")
                 .font(.title)
                 .fontWeight(.bold)
+
+            Text(entry.info)
+                .font(.caption)
 
             Button(intent: SimpleTestIntent()) {
                 Text("ARTTIR")
@@ -69,8 +80,8 @@ struct HomeWidget: Widget {
             HomeWidgetEntryView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName("BLE V9 Import Test")
-        .description("CoreBluetooth import edilmis ama kullanilmiyor.")
+        .configurationDisplayName("BLE V10 Manager Test")
+        .description("CBCentralManager olusturuluyor.")
         .supportedFamilies([.systemLarge])
     }
 }
