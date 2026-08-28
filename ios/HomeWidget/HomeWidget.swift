@@ -3,6 +3,23 @@ import SwiftUI
 import AppIntents
 import CoreBluetooth
 
+class DelegateTester: NSObject, CBCentralManagerDelegate {
+    var manager: CBCentralManager!
+    var continuation: CheckedContinuation<String, Never>?
+
+    func waitForState() async -> String {
+        return await withCheckedContinuation { cont in
+            self.continuation = cont
+            self.manager = CBCentralManager(delegate: self, queue: nil)
+        }
+    }
+
+    func centralManagerDidUpdateState(_ central: CBCentralManager) {
+        continuation?.resume(returning: "Delegate calisti! State: \(central.state.rawValue)")
+        continuation = nil
+    }
+}
+
 struct SimpleTestIntent: AppIntent {
     static var title: LocalizedStringResource = "Basit Test"
 
@@ -10,11 +27,23 @@ struct SimpleTestIntent: AppIntent {
         let currentCount = UserDefaults.standard.integer(forKey: "tapCount")
         let newCount = currentCount + 1
         UserDefaults.standard.set(newCount, forKey: "tapCount")
+        UserDefaults.standard.set("Delegate bekleniyor...", forKey: "managerInfo")
+        WidgetCenter.shared.reloadAllTimelines()
 
-        // CBCentralManager olusturuyoruz ama hicbir sey yapmiyoruz
-        let manager = CBCentralManager()
-        UserDefaults.standard.set("Manager state: \(manager.state.rawValue)", forKey: "managerInfo")
+        let tester = DelegateTester()
 
+        let result = await withTaskGroup(of: String.self) { group in
+            group.addTask { await tester.waitForState() }
+            group.addTask {
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                return "TIMEOUT - delegate 5 saniyede calismadi"
+            }
+            let first = await group.next() ?? "Hata"
+            group.cancelAll()
+            return first
+        }
+
+        UserDefaults.standard.set(result, forKey: "managerInfo")
         WidgetCenter.shared.reloadAllTimelines()
         return .result()
     }
@@ -51,7 +80,7 @@ struct HomeWidgetEntryView: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            Text("V10 - CBCentralManager Testi")
+            Text("V11 - Delegate Testi")
                 .font(.headline)
 
             Text("Sayac: \(entry.count)")
@@ -60,6 +89,7 @@ struct HomeWidgetEntryView: View {
 
             Text(entry.info)
                 .font(.caption)
+                .multilineTextAlignment(.center)
 
             Button(intent: SimpleTestIntent()) {
                 Text("ARTTIR")
@@ -80,8 +110,8 @@ struct HomeWidget: Widget {
             HomeWidgetEntryView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName("BLE V10 Manager Test")
-        .description("CBCentralManager olusturuluyor.")
+        .configurationDisplayName("BLE V11 Delegate Test")
+        .description("Delegate callback bekleniyor.")
         .supportedFamilies([.systemLarge])
     }
 }
