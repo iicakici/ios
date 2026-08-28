@@ -66,16 +66,26 @@ class _BleScanPageState extends State<BleScanPage> {
       });
 
       setState(() {
-        statusText = "Tarama basliyor...";
+        statusText = "Tarama basladi, 5 saniye bekleniyor...";
       });
 
-      await FlutterBluePlus.startScan(timeout: const Duration(seconds: 5));
+      await FlutterBluePlus.startScan();
+
+      // Gercekten 5 saniye bekle (plugin startScan'i hemen dondurebiliyor)
+      for (int i = 5; i > 0; i--) {
+        if (!mounted) break;
+        setState(() {
+          statusText = "Taraniyor... $i saniye kaldi. Su an ${scanResults.length} cihaz bulundu.";
+        });
+        await Future.delayed(const Duration(seconds: 1));
+      }
+
+      await FlutterBluePlus.stopScan();
 
       setState(() {
         statusText = "Tarama bitti. ${scanResults.length} cihaz bulundu.";
       });
 
-      await Future.delayed(const Duration(milliseconds: 500));
       sub.cancel();
     } catch (e, stack) {
       setState(() {
