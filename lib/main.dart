@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:flutter/services.dart';
 
 void main() {
   runApp(const MyApp());
@@ -10,25 +12,39 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Hello World App',
-      home: const HelloWorldPage(),
+      title: 'BLE Scanner App',
+      home: const BleScanPage(),
     );
   }
 }
 
-class HelloWorldPage extends StatefulWidget {
-  const HelloWorldPage({super.key});
+class BleScanPage extends StatefulWidget {
+  const BleScanPage({super.key});
 
   @override
-  State<HelloWorldPage> createState() => _HelloWorldPageState();
+  State<BleScanPage> createState() => _BleScanPageState();
 }
 
-class _HelloWorldPageState extends State<HelloWorldPage> {
-  String displayText = '';
+class _BleScanPageState extends State<BleScanPage> {
+  List<ScanResult> scanResults = [];
+  bool isScanning = false;
 
-  void _showHelloWorld() {
+  Future<void> startScan() async {
     setState(() {
-      displayText = 'Hello World';
+      scanResults = [];
+      isScanning = true;
+    });
+
+    FlutterBluePlus.scanResults.listen((results) {
+      setState(() {
+        scanResults = results;
+      });
+    });
+
+    await FlutterBluePlus.startScan(timeout: const Duration(seconds: 5));
+
+    setState(() {
+      isScanning = false;
     });
   }
 
@@ -36,57 +52,48 @@ class _HelloWorldPageState extends State<HelloWorldPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Hello World App'),
+        title: const Text('BLE Cihaz Tarayici'),
       ),
-      body: Center(
-        child: Text(
-          displayText,
-          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-        ),
-      ),
-      bottomNavigationBar: Container(
-        height: 60,
-        decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: Colors.grey.shade300)),
-        ),
-        child: Row(
-          children: [
-            // 1. bölme - boş
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border(right: BorderSide(color: Colors.grey.shade300)),
-                ),
-                child: const Center(child: Text('')),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: isScanning ? null : startScan,
+                child: Text(isScanning ? 'Taraniyor...' : 'Tara'),
               ),
             ),
-            // 2. bölme - Press butonu (mavi)
-            Expanded(
-              child: InkWell(
-                onTap: _showHelloWorld,
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border(right: BorderSide(color: Colors.grey.shade300)),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'Press',
-                      style: TextStyle(
-                        color: Colors.blue,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: scanResults.length,
+              itemBuilder: (context, index) {
+                final result = scanResults[index];
+                final name = result.device.platformName.isNotEmpty
+                    ? result.device.platformName
+                    : 'Bilinmeyen Cihaz';
+                final id = result.device.remoteId.toString();
+                final rssi = result.rssi;
+
+                return ListTile(
+                  title: Text(name),
+                  subtitle: Text('$id ($rssi dBm)'),
+                  trailing: const Icon(Icons.copy),
+                  onTap: () {
+                    // Panoya kopyala
+                    final text = '$name - $id';
+                    Clipboard.setData(ClipboardData(text: text));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Kopyalandi: $text')),
+                    );
+                  },
+                );
+              },
             ),
-            // 3. bölme - boş
-            const Expanded(
-              child: Center(child: Text('')),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
