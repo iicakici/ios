@@ -1,6 +1,7 @@
 import WidgetKit
 import SwiftUI
 import AppIntents
+import CoreBluetooth
 
 struct SimpleTestIntent: AppIntent {
     static var title: LocalizedStringResource = "Basit Test"
@@ -42,7 +43,7 @@ struct HomeWidgetEntryView: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            Text("V8 - BASIT TEST")
+            Text("V9 - CoreBluetooth Import Testi")
                 .font(.headline)
 
             Text("Sayac: \(entry.count)")
@@ -68,8 +69,8 @@ struct HomeWidget: Widget {
             HomeWidgetEntryView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName("BLE V8 Basit Test")
-        .description("Sadece sayac testi.")
+        .configurationDisplayName("BLE V9 Import Test")
+        .description("CoreBluetooth import edilmis ama kullanilmiyor.")
         .supportedFamilies([.systemLarge])
     }
 }
