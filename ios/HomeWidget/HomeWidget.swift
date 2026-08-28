@@ -50,8 +50,7 @@ struct ScanBLEIntent: AppIntent {
     static var title: LocalizedStringResource = "BLE Tara"
 
     func perform() async throws -> some IntentResult {
-        // ANINDA yaz - buton calisiyor mu test etmek icin
-        UserDefaults.standard.set(["Basildi - taraniyor..."], forKey: "deviceList")
+        UserDefaults.standard.set(["V7 - Basildi - taraniyor..."], forKey: "deviceList")
         WidgetCenter.shared.reloadAllTimelines()
 
         let scanner = BLEListScanner()
@@ -82,16 +81,16 @@ struct CopyDeviceInfoIntent: AppIntent {
 
 struct Provider: TimelineProvider {
     func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), devices: ["Henuz taranmadi"])
+        SimpleEntry(date: Date(), devices: ["V7 - Kod Surumu: 2026-08-27-16:50"])
     }
 
     func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> ()) {
-        let devices = UserDefaults.standard.stringArray(forKey:"deviceList") ?? ["Henuz taranmadi"]
+        let devices = UserDefaults.standard.stringArray(forKey:"deviceList") ?? ["V7 - Kod Surumu: 2026-08-27-16:50"]
         completion(SimpleEntry(date: Date(), devices: devices))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<SimpleEntry>) -> ()) {
-        let devices = UserDefaults.standard.stringArray(forKey:"deviceList") ?? ["Henuz taranmadi"]
+        let devices = UserDefaults.standard.stringArray(forKey:"deviceList") ?? ["V7 - Kod Surumu: 2026-08-27-16:50"]
         let entry = SimpleEntry(date: Date(), devices: devices)
         let timeline = Timeline(entries: [entry], policy: .never)
         completion(timeline)
@@ -109,7 +108,7 @@ struct HomeWidgetEntryView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text("BLE Cihazlar")
+                Text("BLE V7")
                     .font(.caption)
                     .fontWeight(.bold)
                 Spacer()
@@ -146,8 +145,8 @@ struct HomeWidget: Widget {
             HomeWidgetEntryView(entry: entry)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
-        .configurationDisplayName("BLE Cihaz Listesi")
-        .description("Yakindaki BLE cihazlarini listeler, dokununca kopyalar.")
+        .configurationDisplayName("BLE V7")
+        .description("Surum 7 - test.")
         .supportedFamilies([.systemLarge])
     }
 }
