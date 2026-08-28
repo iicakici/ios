@@ -36,14 +36,28 @@ class _BleScanPageState extends State<BleScanPage> {
       scanResults = [];
       isScanning = true;
       errorMessage = null;
-      statusText = "Baslatiliyor...";
+      statusText = "Bluetooth durumu kontrol ediliyor...";
     });
 
     try {
-      final state = await FlutterBluePlus.adapterState.first;
+      // Bilinmeyen (unknown) durumu atla, gercek durumu bekle
+      final state = await FlutterBluePlus.adapterState
+          .where((s) => s != BluetoothAdapterState.unknown)
+          .first
+          .timeout(const Duration(seconds: 10));
+
       setState(() {
         statusText = "Adapter durumu: $state";
       });
+
+      if (state != BluetoothAdapterState.on) {
+        setState(() {
+          errorMessage = "Bluetooth kapali veya izin verilmedi. Durum: $state";
+          statusText = "Bluetooth hazir degil";
+          isScanning = false;
+        });
+        return;
+      }
 
       final sub = FlutterBluePlus.scanResults.listen((results) {
         setState(() {
@@ -76,7 +90,6 @@ class _BleScanPageState extends State<BleScanPage> {
   }
 
   bool _isAppleDevice(ScanResult result) {
-    // Apple'in company identifier kodu 76 (0x004C)
     return result.advertisementData.manufacturerData.containsKey(76);
   }
 
