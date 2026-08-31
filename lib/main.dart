@@ -82,6 +82,9 @@ class _BleScanPageState extends State<BleScanPage> {
 
       await FlutterBluePlus.stopScan();
 
+      // En guclu sinyalli (en yakin) cihaz en uste gelsin
+      scanResults.sort((a, b) => b.rssi.compareTo(a.rssi));
+
       setState(() {
         statusText = "Tarama bitti. ${scanResults.length} cihaz bulundu.";
       });
@@ -146,6 +149,18 @@ class _BleScanPageState extends State<BleScanPage> {
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ),
+          if (scanResults.isNotEmpty)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 4.0),
+              child: Text(
+                'MY DEVICES',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ),
           if (errorMessage != null)
             Padding(
               padding: const EdgeInsets.all(16.0),
