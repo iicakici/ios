@@ -14,6 +14,10 @@ workflows:
           rm -rf ~/Library/Developer/Xcode/DerivedData
           rm -rf ios/build
           rm -rf build
+      - name: Update CocoaPods
+        script: |
+          sudo gem install cocoapods --no-document
+          pod --version
       - name: Get Flutter packages
         script: flutter packages pub get
       - name: Build unsigned iOS app
