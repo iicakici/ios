@@ -28,6 +28,7 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  device_info_plus: ^10.1.2
   flutter_blue_plus: ^1.32.12
   flutter:
     sdk: flutter

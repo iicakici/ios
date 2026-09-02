@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 
 void main() {
   runApp(const MyApp());
@@ -30,6 +31,21 @@ class _BleScanPageState extends State<BleScanPage> {
   bool isScanning = false;
   String? errorMessage;
   String statusText = "Hazir";
+  String myDeviceId = "";
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMyDeviceId();
+  }
+
+  Future<void> _loadMyDeviceId() async {
+    final deviceInfo = DeviceInfoPlugin();
+    final iosInfo = await deviceInfo.iosInfo;
+    setState(() {
+      myDeviceId = iosInfo.identifierForVendor ?? "Bilinmiyor";
+    });
+  }
 
   Future<void> startScan() async {
     setState(() {
@@ -150,14 +166,14 @@ class _BleScanPageState extends State<BleScanPage> {
             ),
           ),
           if (scanResults.isNotEmpty)
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 4.0),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 4.0),
               child: Text(
-                'MY DEVICES',
-                style: TextStyle(
+                'MY DEVICES: $myDeviceId',
+                style: const TextStyle(
                   color: Colors.red,
                   fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontSize: 12,
                 ),
               ),
             ),
