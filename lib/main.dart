@@ -27,6 +27,8 @@ class BleScanPage extends StatefulWidget {
 }
 
 class _BleScanPageState extends State<BleScanPage> {
+  static const platform = MethodChannel('com.example.helloIosApp/shared');
+
   List<ScanResult> scanResults = [];
   bool isScanning = false;
   String? errorMessage;
@@ -47,6 +49,19 @@ class _BleScanPageState extends State<BleScanPage> {
     });
   }
 
+  Future<void> _saveToSharedStorage() async {
+    try {
+      final deviceStrings = scanResults.map((r) {
+        final id = r.device.remoteId.toString();
+        final rssi = r.rssi;
+        return '$id ($rssi dBm)';
+      }).toList();
+      await platform.invokeMethod('saveDevices', deviceStrings);
+    } catch (e) {
+      // Sessizce yoksay, kritik degil
+    }
+  }
+
   Future<void> startScan() async {
     setState(() {
       scanResults = [];
@@ -56,7 +71,6 @@ class _BleScanPageState extends State<BleScanPage> {
     });
 
     try {
-      // Bilinmeyen (unknown) durumu atla, gercek durumu bekle
       final state = await FlutterBluePlus.adapterState
           .where((s) => s != BluetoothAdapterState.unknown)
           .first
@@ -87,7 +101,6 @@ class _BleScanPageState extends State<BleScanPage> {
 
       await FlutterBluePlus.startScan();
 
-      // Gercekten 5 saniye bekle (plugin startScan'i hemen dondurebiliyor)
       for (int i = 5; i > 0; i--) {
         if (!mounted) break;
         setState(() {
@@ -98,8 +111,9 @@ class _BleScanPageState extends State<BleScanPage> {
 
       await FlutterBluePlus.stopScan();
 
-      // En guclu sinyalli (en yakin) cihaz en uste gelsin
       scanResults.sort((a, b) => b.rssi.compareTo(a.rssi));
+
+      await _saveToSharedStorage();
 
       setState(() {
         statusText = "Tarama bitti. ${scanResults.length} cihaz bulundu.";
